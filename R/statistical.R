@@ -21,17 +21,24 @@ int <- lm(YearsAtCompany ~ RelationshipSatisfaction * Gender, data = stat_tbl)
 anova_test(int, detailed = TRUE)
 
 # Visualizations
-# H1 scatterplot. There was a perfectly bimodal distribution in performance rating scores, which obfuscated interpretations So I jittered the data. I considered adjusting the y-axis units to dispaly the full range of possible ranking values, but without context on that variable's full scale, I chose to leave the plotted scale as is.
+# H1 scatterplot. There was a perfectly bimodal distribution in performance rating scores, which obfuscated interpretations So I jittered the data. I considered adjusting the y-axis units to dispaly the full range of possible ranking values, but without context on that variable's full scale, I chose to leave the plotted scale as is. For this and all other graphs, I chose to avoid going too far with color to keep it simple and avoid possible challenges to inclusiveness with colorblindness.
 (ggplot(data = stat_tbl, aes(x = MonthlyIncome, y = PerformanceRating)) +
     geom_jitter() +
     geom_smooth(method = "lm", se = FALSE) +
     labs(x = "Mothly Income", y = "Performance Rating")) %>%
-  ggsave(filename="../figs/H1.png", units="px", width=1920, height=1080)
+  ggsave(filename = "../figs/H1.png", units = "px", width = 1920, height = 1080)
 
 # H2 boxplot. 
-ggplot(data = stat_tbl, aes(x = Department, y = MonthlyIncome)) +
+(ggplot(data = stat_tbl, aes(x = Department, y = MonthlyIncome)) +
   geom_boxplot() +
-  labs(x = "Departments", y = "Monthly Income")
+  labs(x = "Departments", y = "Monthly Income")) %>%
+  ggsave(filename = "../figs/H2.png", units = "px", width = 1920, height = 1080)
+
+# H3 moderated linear regression. I added a jitter function to display more variance in the relationship satisfaction variable.
+ggplot(data = stat_tbl, aes(x = RelationshipSatisfaction, y = int$residuals, group = Gender, color = Gender)) +
+  geom_jitter() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Relationship Satisfaction", y = "Years at Compan")
 
 # Publication
 # Publication results for H1
