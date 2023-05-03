@@ -39,7 +39,7 @@ H3anova
   ggsave(filename = "../figs/H2.png", units = "px", width = 1920, height = 1080)
 
 # H3 moderated linear regression. To graph the marginal effects, rather than raw data, I put the fitted (i.e., predicted) values on the y-axis
-(ggplot(data = stat_tbl, aes(x = RelationshipSatisfaction, y = int$fitted.values, group = Gender, color = Gender)) +
+(ggplot(data = stat_tbl, aes(x = RelationshipSatisfaction, y = H3lm$fitted.values, group = Gender, color = Gender)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
   labs(x = "Relationship Satisfaction", y = "Years at Company")) %>%
@@ -60,5 +60,5 @@ H3anova
   write_csv(file = "../out/H1.csv")
 (tukey_hsd(stat_tbl, MonthlyIncome ~ Department)) %>%
   write_csv(file = "../out/H1b.csv")
-(anova_test(int, detailed = TRUE)) %>%
+(anova_test(H3lm, detailed = TRUE)) %>%
   write_csv(file = "../out/H3.csv")
