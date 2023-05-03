@@ -1,0 +1,4 @@
+Effect,SSn,SSd,DFn,DFd,F,p,p<.05,ges
+RelationshipSatisfaction,22.171,54991.626,1,1466,0.591,0.442,,4.03e-4
+Gender,50.281,54991.626,1,1466,1.34,0.247,,9.14e-4
+RelationshipSatisfaction:Gender,75.315,54991.626,1,1466,2.008,0.157,,0.001

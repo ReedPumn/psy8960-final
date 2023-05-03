@@ -1,0 +1,2 @@
+var1,var2,cor,statistic,p,conf.low,conf.high,method
+MonthlyIncome,PerformanceRating,-0.017,-0.6560454833593234,0.512,-0.06818790914258771,0.0340371111605089,Pearson

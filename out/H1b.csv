@@ -1,0 +1,4 @@
+term,group1,group2,null.value,estimate,conf.low,conf.high,p.adj,p.adj.signif
+Department,Human Resources,Research & Development,0,-373.25507490543623,-1807.5700172043123,1061.0598673934398,0.814,ns
+Department,Human Resources,Sales,0,304.6647092319845,-1179.7241976564158,1789.0536161203847,0.88,ns
+Department,Research & Development,Sales,0,677.9197841374207,46.025483064020705,1309.8140852108208,0.032,*
