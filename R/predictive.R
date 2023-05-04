@@ -1,7 +1,7 @@
 # Script Settings and Resources
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 library(tidyverse)
-library(GGally)
+library(fastDummies)
 
 # Data Import and Cleaning
 no_text_tbl <- read.csv("../data/full_dataset.csv") %>%
@@ -18,9 +18,7 @@ no_text_tbl <- read.csv("../data/full_dataset.csv") %>%
   mutate(Attrition = recode(Attrition, "No" = "0", "Yes" = "1"),
          Gender = recode(Gender, "Female" = "0", "Male" = "1"),
          OverTime = recode(OverTime, "No" = "0", "Yes" = "1")) %>%
-  # Make these binary categorical variables characters, rather than integers.
-  mutate(Attrition = as.character(Attrition),
-         Gender = as.character(Gender),
-         OverTime = as.character(OverTime)) %>%
-  # Some categorical variables, such as MaritalStatus were not binary. They were excluded from the dataset to prevent too many dummy variables from obfuscating the model's interpretability.
+  # Now dummy code the other categorical variables that were not binary. I used the fastDummies package to quickly dummy code these data.
+  dummy_cols(select_columns = c("BusinessTravel", "Department", "EducationField", "JobRole", "MaritalStatus")) %>%
+  # Now that these variables are dummy coded, we remove the original columns.
   select(-BusinessTravel, -Department, -EducationField, -JobRole, -MaritalStatus)
