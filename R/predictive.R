@@ -51,7 +51,7 @@ num_clusters <- makeCluster(7)
 registerDoParallel(num_clusters)
 
 # I started with a logistic regression since our outcome variable of Attrition is binomial. I set a logistic regression using the method = "glm" and family = "binomial" arguments. I 
-LOGparallel <- train(
+LOG <- train(
   Attrition ~ .,
   no_text_train_tbl,
   method = "glm",
@@ -59,9 +59,9 @@ LOGparallel <- train(
   preProcess = c("center", "scale", "nzv", "medianImpute"),
   trControl = trainControl(method = "cv", indexOut = kfolds, number = 10, search = "grid", verboseIter = TRUE)
 )
-LOGparallel
+LOG
 
-ENETparallel <- train(
+ENET <- train(
   Attrition ~ .,
   no_text_train_tbl,
   method = "glmnet",
@@ -69,26 +69,43 @@ ENETparallel <- train(
   preProcess = c("center", "scale", "nzv", "medianImpute"),
   trControl = trainControl(method = "cv", indexOut = kfolds, number = 10, search = "grid", verboseIter = TRUE)
 )
-ENETparallel
+ENET
 
-RFORRESTparallel <- train(
+RFORREST <- train(
   Attrition ~ .,
   no_text_train_tbl,
   method = "ranger",
   na.action = na.pass,
   preProcess = c("center", "scale", "nzv", "medianImpute"),
   trControl = trainControl(method = "cv", indexOut = kfolds, number = 10, search = "grid", verboseIter = TRUE))
-RFORRESTparallel
+RFORREST
 
-EGBparallel <- train(
+EGB <- train(
   Attrition ~ .,
   no_text_train_tbl,
   method = "xgbLinear", 
   na.action = na.pass,
   preProcess = c("center", "scale", "nzv", "medianImpute"),
   trControl = trainControl(method = "cv", indexOut = kfolds, number = 10, search = "grid", verboseIter = TRUE))
-EGBparallel
+EGB
 
+holdout1 <- mean(as.integer(as.character(predict(LOG, no_text_test_tbl, na.action = na.pass))))
+holdout2 <- mean(as.integer(as.character(predict(ENET, no_text_test_tbl, na.action = na.pass))))
+holdout3 <- mean(as.integer(as.character(predict(RFORREST, no_text_test_tbl, na.action = na.pass))))
+holdout4 <- mean(as.integer(as.character(predict(EGB, no_text_test_tbl, na.action = na.pass))))
 
 stopCluster(num_clusters)
 registerDoSEQ()
+
+FirstR2 <- LOG$results$Accuracy %>%
+  round(2) %>%
+  str_remove(pattern = "^(?-)0")
+SecondR2 <- max(ENET$results$Accuracy) %>%
+  round(2) %>%
+  str_remove(pattern = "^(?-)0")
+ThirdR2 <- max(RFORREST$results$Accuracy) %>%
+  round(2) %>%
+  str_remove(pattern = "^(?-)0")
+FourthR2 <- max(EGB$results$Accuracy) %>%
+  round(2) %>%
+  str_remove(pattern = "^(?-)0")
