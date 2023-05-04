@@ -4,6 +4,8 @@ library(tidyverse)
 library(fastDummies)
 library(haven)
 library(caret)
+library(parallel)
+library(doParallel)
 set.seed(123)
 
 # Data Import and Cleaning
@@ -24,7 +26,9 @@ no_text_tbl <- read.csv("../data/full_dataset.csv") %>%
   # Now dummy code the other categorical variables that were not binary. I used the fastDummies package to quickly dummy code these data.
   dummy_cols(select_columns = c("BusinessTravel", "Department", "EducationField", "JobRole", "MaritalStatus")) %>%
   # Now that these variables are dummy coded, we remove the original columns.
-  select(-BusinessTravel, -Department, -EducationField, -JobRole, -MaritalStatus)
+  select(-BusinessTravel, -Department, -EducationField, -JobRole, -MaritalStatus) %>%
+  # Also remove the Employee_ID column since its inclusion would only add random noise to the model
+  select(-Employee_ID)
 
 # Analysis
 # This line randomizes the rows in our tibble to be later divided into training and test sets.
@@ -37,3 +41,50 @@ no_text_train_tbl <- no_text_random_tbl[1:no_text_random_75, ]
 kfolds <- createFolds(no_text_train_tbl$Attrition, 10)
 # This line creates our test set with 25% of our data. We do this to later test the predictive accuracy of our models.
 no_text_test_tbl <- no_text_random_tbl[(no_text_random_75 + 1):nrow(no_text_random_tbl), ]
+
+# I established parallel processing to speed up these analyses.
+num_clusters <- makeCluster(7)
+registerDoParallel(num_clusters)
+
+# I started with a logistic regression since our outcome variable of Attrition is binomial. I set a logistic regression using the method = "glm" and family = "binomial" arguments. I 
+LOGparallel <- train(
+  Attrition ~ .,
+  no_text_train_tbl,
+  method = "glm",
+  na.action = na.pass,
+  preProcess = c("center", "scale", "nzv", "medianImpute"),
+  trControl = trainControl(method = "cv", indexOut = kfolds, number = 10, search = "grid", verboseIter = TRUE)
+)
+LOGparallel
+
+ENETparallel <- train(
+  Attrition ~ .,
+  no_text_train_tbl,
+  method = "glmnet",
+  na.action = na.pass,
+  preProcess = c("center", "scale", "nzv", "medianImpute"),
+  trControl = trainControl(method = "cv", indexOut = kfolds, number = 10, search = "grid", verboseIter = TRUE)
+)
+ENETparallel
+
+RFORRESTparallel <- train(
+  Attrition ~ .,
+  no_text_train_tbl,
+  method = "ranger",
+  na.action = na.pass,
+  preProcess = c("center", "scale", "nzv", "medianImpute"),
+  trControl = trainControl(method = "cv", indexOut = kfolds, number = 10, search = "grid", verboseIter = TRUE))
+RFORRESTparallel
+
+EGBparallel <- train(
+  Attrition ~ .,
+  no_text_train_tbl,
+  method = "xgbLinear", 
+  na.action = na.pass,
+  preProcess = c("center", "scale", "nzv", "medianImpute"),
+  trControl = trainControl(method = "cv", indexOut = kfolds, number = 10, search = "grid", verboseIter = TRUE))
+EGBparallel
+
+
+stopCluster(num_clusters)
+registerDoSEQ()
