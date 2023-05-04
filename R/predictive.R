@@ -2,6 +2,9 @@
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 library(tidyverse)
 library(fastDummies)
+library(haven)
+library(caret)
+set.seed(123)
 
 # Data Import and Cleaning
 no_text_tbl <- read.csv("../data/full_dataset.csv") %>%
@@ -22,3 +25,15 @@ no_text_tbl <- read.csv("../data/full_dataset.csv") %>%
   dummy_cols(select_columns = c("BusinessTravel", "Department", "EducationField", "JobRole", "MaritalStatus")) %>%
   # Now that these variables are dummy coded, we remove the original columns.
   select(-BusinessTravel, -Department, -EducationField, -JobRole, -MaritalStatus)
+
+# Analysis
+# This line randomizes the rows in our tibble to be later divided into training and test sets.
+no_text_random_tbl <- no_text_tbl[sample(nrow(no_text_tbl)), ]
+# This line lets us know where to "slice" our data in half. We use this slice point to create our training data and test data.
+no_text_random_75 <- round(nrow(no_text_random_tbl) * 0.75, 0)
+# This line creates our training set with 75% of our data. We do this to give our models enough data to form stable predictions to new data.
+no_text_train_tbl <- no_text_random_tbl[1:no_text_random_75, ]
+# This line splits our training data into 10 folds. We do this to safely evaluate the central tendency and variability of our metrics of interest.
+kfolds <- createFolds(no_text_train_tbl$Attrition, 10)
+# This line creates our test set with 25% of our data. We do this to later test the predictive accuracy of our models.
+no_text_test_tbl <- no_text_random_tbl[(no_text_random_75 + 1):nrow(no_text_random_tbl), ]
