@@ -22,25 +22,23 @@ no_text_tbl <- read.csv("../data/full_dataset.csv") %>%
   select(Age:Employee_ID) %>%
   # No need to include these variables since they showed no variance.
   select(-EmployeeCount, -StandardHours, -Over18) %>% 
-  # These variables wer nonnormally distributed, so I log transformed them. There were other nonnormally distributing variables, but log transforming them introduced problems with a lot of data points reaching negative infinity, so I only log transformed variables where that did not occur.
+  # These variables were nonnormally distributed, so I log transformed them. There were other nonnormally distributing variables, but log transforming them introduced problems with a lot of data points reaching negative infinity, so I only log transformed variables where that did not occur.
   mutate(DistanceFromHome = log(DistanceFromHome),
          MonthlyIncome = log(MonthlyIncome),
          PercentSalaryHike = log(PercentSalaryHike)) %>%
-  # I recoded binary categorical variables from characters to 0s and 1s. 
-  mutate(Attrition = recode(Attrition, "No" = "0", "Yes" = "1"),
-         Gender = recode(Gender, "Female" = "0", "Male" = "1"),
-         OverTime = recode(OverTime, "No" = "0", "Yes" = "1")) %>%
-  # Now dummy code the other categorical variables that were not binary. I used the fastDummies package to quickly dummy code these data.
-  dummy_cols(select_columns = c("BusinessTravel", "Department", "EducationField", "JobRole", "MaritalStatus")) %>%
-  # Now recode all categorical variables as factors with these two sets of pipes. 
-  mutate(Attrition = as_factor(Attrition),
-         Gender = as_factor(Gender),
-         OverTime = as_factor(OverTime)) %>%
-  mutate(across(`BusinessTravel_Non-Travel`:MaritalStatus_Single, factor)) %>%
-  # Now that these variables are dummy coded, we remove the original columns.
-  select(-BusinessTravel, -Department, -EducationField, -JobRole, -MaritalStatus) %>%
-  # Also remove the Employee_ID column since its inclusion would only add random noise to the model
-  select(-Employee_ID)
+  # I recoded binary categorical variables from characters to factors. 
+  mutate(Attrition = as_factor(recode(Attrition, "No" = "0", "Yes" = "1")),
+         Gender = as_factor(recode(Gender, "Female" = "0", "Male" = "1")),
+         OverTime = as_factor(recode(OverTime, "No" = "0", "Yes" = "1"))) %>%
+  # Now recode all other categorical variables as factors. To keep the factored data as numbers, rather than text, I converted them to numeric values and then back to factors.
+  mutate(Attrition = as_factor(as.numeric(as_factor(Attrition))),
+         Gender = as_factor(as.numeric(as_factor(Gender))),
+         OverTime = as_factor(as.numeric(as_factor(OverTime))),
+         BusinessTravel = as_factor(as.numeric(as_factor(BusinessTravel))),
+         Department = as_factor(as.numeric(as_factor(Department))),
+         EducationField = as_factor(as.numeric(as_factor(EducationField))),
+         JobRole = as_factor(as.numeric(as_factor(JobRole))),
+         MaritalStatus = as_factor(as.numeric(as_factor(MaritalStatus))))
 
 # Analysis
 # This line randomizes the rows in our tibble to be later divided into training and test sets.
@@ -114,15 +112,20 @@ FourthR2 <- round(max(EGB$results$Accuracy), 2)
 
 # These four lines of code apply our models we trained on our test set data to evaluate how well they generalize to new data. As we will see, the accuracy of these models was quite poor, suggesting that we overfitted our training data with our original models. There were a lot of conversions needed to turn our factor data into integer data. These conversions were needed to calculate the mean number of accurate predictions. Numbers here range from 0 to 1, representing the percent of correct catagorizations in our test data.
 holdout1 <- mean(as.integer(as.character(predict(LOG, no_text_test_tbl, na.action = na.pass)))) %>%
-  round(2)
+  round(2) %>%
+  # All predicted values were 1 or 2, with 2 being a correct prediction. Subtract 1 from all values here and for the other models to turn them into a percentage.
+  - 1
 holdout2 <- mean(as.integer(as.character(predict(ENET, no_text_test_tbl, na.action = na.pass)))) %>%
-  round(2)
+  round(2) %>%
+  - 1
 holdout3 <- mean(as.integer(as.character(predict(RFORREST, no_text_test_tbl, na.action = na.pass)))) %>%
-  round(2)
+  round(2) %>% 
+  - 1
 holdout4 <- mean(as.integer(as.character(predict(EGB, no_text_test_tbl, na.action = na.pass)))) %>%
-  round(2)
+  round(2) %>% 
+  - 1
 
-# Adding text data to the model
+# Adding text data to the model:
 # First bring in our original tbl, but this time add the two free-response text items. I used the same code as before with one slight alteration that is commented out.
 text_tbl <- read.csv("../data/full_dataset.csv") %>%
   as_tibble() %>%
@@ -164,13 +167,22 @@ tokenizer <- function(x) {
 }
 DTM <- DocumentTermMatrix(corpus_trimmed, control = list(tokenize = tokenizer))
 slim_DTM <- removeSparseTerms(DTM, .997)
+# Now transform the DTM to a tibble.
+slim_DTM_tbl <- as_tibble(as.matrix(slim_DTM))
+# Now that we have a tibble of our two free-response questions' content, we can merge it with the original tibble. Except I need to go back and ensure these two tibbles have the Employee_ID columns so that they can be merged.
+full_tbl <- full_join(no_text_tbl, slim_DTM_tbl, by = "Employee_ID")
+
+# This series of lines creates our week12_tbl. We first create two tibbles with ids to enable joining.
+week12_tbl_with_ids <- week12_tbl %>%
+  mutate(doc_id = as.character(1:nrow(week12_tbl)))
+topics_tbl_with_ids <- tibble(doc_id = Docs(io_dtm))
 
 # Publication
 # Create a tibble to summarize and display the results of our four models across both training and test data.
 table1_tbl <- tibble(
   algo = c("OLS Regression", "Elastic Net", "Random Forest", "eXtreme Gradient Boosting"),
-  cv_rsq = c(FirstR2, SecondR2, ThirdR2, FourthR2),
-  ho_rsq = c(holdout1, holdout2, holdout3, holdout4)
+  Train_Accuracy = c(FirstR2, SecondR2, ThirdR2, FourthR2),
+  Test_Accuracy = c(holdout1, holdout2, holdout3, holdout4)
 )
 # What characteristics of how you created the final model likely made the biggest impact in maximizing its performance? How do you know? Be sure to interpret specific numbers in the table you just created.
-# The single decision that most likely impact the final model's performance was my inclusion of all available data as predictors. The instructions for this assignment were to "develop the model you believe likely to best predict turnover in new samples using all available cases and all available variables, in some way." Because I used all variables to predict turnover, I likely overfitted my training set data, thereby making my models poorly generalize to other data. I beleive I overfitted my data because the training set data had incredibly impressive accuracy across ALL models (they all ranged from .90 to .99). Because they were so well fitted to the training data, accuracy was incredibly low across ALL models when applied to test data (accuracy ranged from .08 to .11). Other characteristics of my models do not likely have a large chance to meaningfully influence the results because of this overfitting. If I were to continue refining these models, I would consider using less predictors to avoid overfitting my training set data. Doing so may reduce the model's initial accuracy, but it would likely improve my models' accuracy when applied to other data.
+# The single decision that most likely impact the final model's performance was my inclusion of all available data as predictors. The instructions for this assignment were to "develop the model you believe likely to best predict turnover in new samples using all available cases and all available variables, in some way." Because I used all variables to predict turnover, I likely overfitted my training set data, thereby making my models poorly generalize to other data. I believe I overfitted my data because the training set data had incredibly impressive accuracy across ALL models (they all ranged from .90 to .99). Because they were so well fitted to the training data, accuracy was incredibly low across ALL models when applied to test data (accuracy ranged from .08 to .11). Other characteristics of my models do not likely have a large chance to meaningfully influence the results because of this overfitting. If I were to continue refining these models, I would consider using less predictors to avoid overfitting my training set data. Doing so may reduce the model's initial accuracy, but it would likely improve my models' accuracy when applied to other data.
