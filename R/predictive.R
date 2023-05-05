@@ -104,13 +104,13 @@ EGB
 stopCluster(num_clusters)
 registerDoSEQ()
 
-# These four pipes calculate the accuracy of our models. Accuracy for our models refers to correctly identifying whether or not the given employee has experienced job attrition. Our accuracy for each model was very high.
+# These four lines of code calculate the accuracy of our models. Accuracy for our models refers to correctly identifying whether or not the given employee has experienced job attrition. Our accuracy for each model was very high.
 FirstR2 <- round(LOG$results$Accuracy, 2)
 SecondR2 <- round(max(ENET$results$Accuracy), 2)
 ThirdR2 <- round(max(RFORREST$results$Accuracy), 2)
 FourthR2 <- round(max(EGB$results$Accuracy), 2)
 
-# These four lines of code apply our models we trained on our test set data to evaluate how well they generalize to new data.
+# These four lines of code apply our models we trained on our test set data to predict attrition values in the test data.
 predicted1 <- predict(LOG, no_text_test_tbl, na.action = na.pass)
 predicted2 <- predict(ENET, no_text_test_tbl, na.action = na.pass)
 predicted3 <- predict(RFORREST, no_text_test_tbl, na.action = na.pass)
@@ -131,24 +131,36 @@ text_tbl <- read.csv("../data/full_dataset.csv") %>%
   mutate(DistanceFromHome = log(DistanceFromHome),
          MonthlyIncome = log(MonthlyIncome),
          PercentSalaryHike = log(PercentSalaryHike)) %>%
-  mutate(Attrition = recode(Attrition, "No" = "0", "Yes" = "1"),
-         Gender = recode(Gender, "Female" = "0", "Male" = "1"),
-         OverTime = recode(OverTime, "No" = "0", "Yes" = "1")) %>%
-  dummy_cols(select_columns = c("BusinessTravel", "Department", "EducationField", "JobRole", "MaritalStatus")) %>%
-  mutate(Attrition = as_factor(Attrition),
-         Gender = as_factor(Gender),
-         OverTime = as_factor(OverTime)) %>%
-  mutate(across(`BusinessTravel_Non-Travel`:MaritalStatus_Single, factor)) %>%
-  select(-BusinessTravel, -Department, -EducationField, -JobRole, -MaritalStatus) %>%
-  select(-Employee_ID) %>%
+  mutate(Attrition = as_factor(recode(Attrition, "No" = "0", "Yes" = "1")),
+         Gender = as_factor(recode(Gender, "Female" = "0", "Male" = "1")),
+         OverTime = as_factor(recode(OverTime, "No" = "0", "Yes" = "1"))) %>%
+  mutate(Attrition = as_factor(as.numeric(as_factor(Attrition))),
+         Gender = as_factor(as.numeric(as_factor(Gender))),
+         OverTime = as_factor(as.numeric(as_factor(OverTime))),
+         BusinessTravel = as_factor(as.numeric(as_factor(BusinessTravel))),
+         Department = as_factor(as.numeric(as_factor(Department))),
+         EducationField = as_factor(as.numeric(as_factor(EducationField))),
+         JobRole = as_factor(as.numeric(as_factor(JobRole))),
+         MaritalStatus = as_factor(as.numeric(as_factor(MaritalStatus))))  %>%
   # Remove any and all rows with NAs there are part of the two free-response text questions. We do this to not introduce problems when making our corpus.
   drop_na()
 
-# Create a corpus for the two free-response questions.
-corpus <- VCorpus(VectorSource(c(text_tbl$The_Good, text_tbl$The_Bad)))
+# Create a corpus for each of the two free-response questions.
+corpus_good <- VCorpus(VectorSource(text_tbl$The_Good))
+corpus_bad <- VCorpus(VectorSource(text_tbl$The_Bad))
 
-# This series of pipes creates that trimmed corpus.Removing punctuation is particularly relevant for these data.
-corpus_trimmed <- corpus %>%
+# This series of pipes creates trimmed corpuses. Removing punctuation is particularly relevant for these data.
+corpus_good_trimmed <- corpus_good %>%
+  tm_map(content_transformer(qdap::replace_abbreviation)) %>%
+  tm_map(content_transformer(replace_contraction)) %>%
+  tm_map(content_transformer(str_to_lower)) %>%
+  tm_map(removeNumbers) %>%
+  tm_map(removePunctuation) %>%
+  tm_map(removeWords, c(stopwords("en"), "can")) %>%
+  tm_map(stripWhitespace) %>%
+  tm_map(content_transformer(lemmatize_words))
+
+corpus_bad_trimmed <- corpus_bad %>%
   tm_map(content_transformer(qdap::replace_abbreviation)) %>%
   tm_map(content_transformer(replace_contraction)) %>%
   tm_map(content_transformer(str_to_lower)) %>%
@@ -162,12 +174,48 @@ corpus_trimmed <- corpus %>%
 tokenizer <- function(x) {
   NGramTokenizer(x, Weka_control(min = 1, max = 2))
 }
-DTM <- DocumentTermMatrix(corpus_trimmed, control = list(tokenize = tokenizer))
-slim_DTM <- removeSparseTerms(DTM, .997)
-# Now transform the DTM to a tibble.
-slim_DTM_tbl <- as_tibble(as.matrix(slim_DTM))
-# Now that we have a tibble of our two free-response questions' content, we can merge it with the original tibble. Except I need to go back and ensure these two tibbles have the Employee_ID columns so that they can be merged.
-full_tbl <- full_join(no_text_tbl, slim_DTM_tbl, by = "Employee_ID")
+DTM_good <- DocumentTermMatrix(corpus_good_trimmed, control = list(tokenize = tokenizer))
+DTM_bad <- DocumentTermMatrix(corpus_bad_trimmed, control = list(tokenize = tokenizer))
+
+# Determine how many topics exist in the tibbles. For good responses, 5 topics seem appropriate.
+topics_good <- FindTopicsNumber(DTM_good, 
+                                topics = seq(2, 10, by = 1),
+                                metrics = c( "Griffiths2004", "CaoJuan2009", "Arun2010", "Deveaud2014"), 
+                                verbose = TRUE)
+FindTopicsNumber_plot(topics_good)
+# Determine how many topics exist. For bad responses, 4 topics seem appropriate.
+topics_bad <- FindTopicsNumber(DTM_bad, 
+                                topics = seq(2, 10, by = 1),
+                                metrics = c( "Griffiths2004", "CaoJuan2009", "Arun2010", "Deveaud2014"), 
+                                verbose = TRUE)
+FindTopicsNumber_plot(topics_bad)
+
+# I chose to analyze our good data with 5 topics and our bad data with 4 topics based on findings from the previous plots.
+lda_good_results <- LDA(DTM_good, 5)
+lda_bad_results <- LDA(DTM_bad, 4)
+# This line documents our beta matrix, noting the likelihood of each word appearing in the data.
+lda_good_betas <- tidy(lda_good_results, matrix = "beta")
+lda_bad_betas <- tidy(lda_bad_results, matrix = "beta")
+# Similarly, this line documents our gamma matrix, noting the likelihood fo each document appearing in the data.
+ 
+# Turn our two DTMs into tibbles. I focused on the gamma values since they correspond directly to topics that each employee discussed. I grouped the data by each document to get the desired number of rows corresponding to the number of employees. Arranging data by employee ids is much cleaner.
+lda_good_gammas <- tidy(lda_good_results, matrix = "gamma") %>%
+  group_by(document) %>%
+  slice_max(n = 1, gamma, with_ties = FALSE) %>%
+  mutate(Employee_ID = as.integer(document)) %>%
+  arrange(Employee_ID)
+lda_bad_gammas <- tidy(lda_bad_results, matrix = "gamma") %>%
+  group_by(document) %>%
+  slice_max(n = 1, gamma, with_ties = FALSE) %>%
+  mutate(Employee_ID = as.integer(document)) %>%
+  arrange(Employee_ID)
+
+
+
+
+
+
+
 
 # This series of lines creates our week12_tbl. We first create two tibbles with ids to enable joining.
 week12_tbl_with_ids <- week12_tbl %>%
