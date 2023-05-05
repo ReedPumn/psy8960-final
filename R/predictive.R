@@ -6,6 +6,13 @@ library(haven)
 library(caret)
 library(parallel)
 library(doParallel)
+library(tm)
+library(qdap)
+library(textstem)
+library(RWeka)
+library(ldatuning)
+library(topicmodels)
+library(tidytext)
 set.seed(123)
 
 # Data Import and Cleaning
@@ -115,6 +122,49 @@ holdout3 <- mean(as.integer(as.character(predict(RFORREST, no_text_test_tbl, na.
 holdout4 <- mean(as.integer(as.character(predict(EGB, no_text_test_tbl, na.action = na.pass)))) %>%
   round(2)
 
+# Adding text data to the model
+# First bring in our original tbl, but this time add the two free-response text items. I used the same code as before with one slight alteration that is commented out.
+text_tbl <- read.csv("../data/full_dataset.csv") %>%
+  as_tibble() %>%
+  # select(Age:Employee_ID) %>% I commented out this line out so that the two free response items would be included
+  select(-EmployeeCount, -StandardHours, -Over18) %>%
+  mutate(DistanceFromHome = log(DistanceFromHome),
+         MonthlyIncome = log(MonthlyIncome),
+         PercentSalaryHike = log(PercentSalaryHike)) %>%
+  mutate(Attrition = recode(Attrition, "No" = "0", "Yes" = "1"),
+         Gender = recode(Gender, "Female" = "0", "Male" = "1"),
+         OverTime = recode(OverTime, "No" = "0", "Yes" = "1")) %>%
+  dummy_cols(select_columns = c("BusinessTravel", "Department", "EducationField", "JobRole", "MaritalStatus")) %>%
+  mutate(Attrition = as_factor(Attrition),
+         Gender = as_factor(Gender),
+         OverTime = as_factor(OverTime)) %>%
+  mutate(across(`BusinessTravel_Non-Travel`:MaritalStatus_Single, factor)) %>%
+  select(-BusinessTravel, -Department, -EducationField, -JobRole, -MaritalStatus) %>%
+  select(-Employee_ID) %>%
+  # Remove any and all rows with NAs there are part of the two free-response text questions. We do this to not introduce problems when making our corpus.
+  drop_na()
+
+# Create a corpus for the two free-response questions.
+corpus <- VCorpus(VectorSource(c(text_tbl$The_Good, text_tbl$The_Bad)))
+
+# This series of pipes creates that trimmed corpus.Removing punctuation is particularly relevant for these data.
+corpus_trimmed <- corpus %>%
+  tm_map(content_transformer(qdap::replace_abbreviation)) %>%
+  tm_map(content_transformer(replace_contraction)) %>%
+  tm_map(content_transformer(str_to_lower)) %>%
+  tm_map(removeNumbers) %>%
+  tm_map(removePunctuation) %>%
+  tm_map(removeWords, c(stopwords("en"), "can")) %>%
+  tm_map(stripWhitespace) %>%
+  tm_map(content_transformer(lemmatize_words))
+
+# Create the DTM. We first tokenize our data to include 2-gram tokens. Given the relatively small amount of data at my disposal, I was hesitant to consider 3-gram tokens.
+tokenizer <- function(x) {
+  NGramTokenizer(x, Weka_control(min = 1, max = 2))
+}
+DTM <- DocumentTermMatrix(corpus_trimmed, control = list(tokenize = tokenizer))
+slim_DTM <- removeSparseTerms(DTM, .997)
+
 # Publication
 # Create a tibble to summarize and display the results of our four models across both training and test data.
 table1_tbl <- tibble(
@@ -123,4 +173,4 @@ table1_tbl <- tibble(
   ho_rsq = c(holdout1, holdout2, holdout3, holdout4)
 )
 # What characteristics of how you created the final model likely made the biggest impact in maximizing its performance? How do you know? Be sure to interpret specific numbers in the table you just created.
-# The single decision that most likely impact the final model's performance was my inclusion of all available data as predictors. The instructions for this assignment were to "develop the model you believe likely to best predict turnover in new samples using all available cases and all available variables, in some way." Because I used all variables to predict turnover, I likely overfitted my training set data, thereby making my models poorly generalize to other data. I beleive I overfitted my data because the training set data had incredibly impressive accuracy across ALL models (they all ranged from .90 to .99). Because they were so well fitted to the training data, accuracy was incredibly low across ALL models when applied to test data (accuracy ranged from .08 to .11). If I were to continue refining these models, I would consider using less predictors to avoid overfitting my training set data. Doing so may reduce the model's initial accuracy, but it would likely improve my models' accuracy when applied to other data.
+# The single decision that most likely impact the final model's performance was my inclusion of all available data as predictors. The instructions for this assignment were to "develop the model you believe likely to best predict turnover in new samples using all available cases and all available variables, in some way." Because I used all variables to predict turnover, I likely overfitted my training set data, thereby making my models poorly generalize to other data. I beleive I overfitted my data because the training set data had incredibly impressive accuracy across ALL models (they all ranged from .90 to .99). Because they were so well fitted to the training data, accuracy was incredibly low across ALL models when applied to test data (accuracy ranged from .08 to .11). Other characteristics of my models do not likely have a large chance to meaningfully influence the results because of this overfitting. If I were to continue refining these models, I would consider using less predictors to avoid overfitting my training set data. Doing so may reduce the model's initial accuracy, but it would likely improve my models' accuracy when applied to other data.
