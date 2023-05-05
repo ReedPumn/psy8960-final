@@ -219,15 +219,82 @@ full_tbl <- no_text_tbl %>%
   full_join(lda_bad_gammas) %>%
   select(-document, -gamma, -topic)
 
+# Just as before, these lines of code create the test and training sets in our data.
+full_random_tbl <- full_tbl[sample(nrow(full_tbl)), ]
+full_random_75 <- round(nrow(full_random_tbl) * 0.75, 0)
+full_train_tbl <- full_random_tbl[1:full_random_75, ]
+kfolds <- createFolds(full_train_tbl$Attrition, 10)
+full_test_tbl <- full_random_tbl[(full_random_75 + 1):nrow(full_random_tbl), ]
 
+# I established parallel processing to speed up these analyses.
+num_clusters <- makeCluster(7)
+registerDoParallel(num_clusters)
 
+# I am running the same models as before to enable fair comparisons.
+LOG_full <- train(
+  Attrition ~ .,
+  full_train_tbl,
+  method = "glm",
+  tuneLength = 3,
+  na.action = na.pass,
+  preProcess = c("center", "scale", "nzv", "medianImpute"),
+  trControl = trainControl(method = "cv", indexOut = kfolds, number = 10, search = "grid", verboseIter = TRUE)
+)
+# Evaluate the model to check for NA values or errors. I do the same for all other models.
+LOG_full
 
+ENET_full <- train(
+  Attrition ~ .,
+  full_train_tbl,
+  method = "glmnet",
+  tuneLength = 3,
+  na.action = na.pass,
+  preProcess = c("center", "scale", "nzv", "medianImpute"),
+  trControl = trainControl(method = "cv", indexOut = kfolds, number = 10, search = "grid", verboseIter = TRUE)
+)
+ENET_full
 
+RFORREST_full <- train(
+  Attrition ~ .,
+  full_train_tbl,
+  method = "ranger",
+  tuneLength = 3,
+  na.action = na.pass,
+  preProcess = c("center", "scale", "nzv", "medianImpute"),
+  trControl = trainControl(method = "cv", indexOut = kfolds, number = 10, search = "grid", verboseIter = TRUE))
+RFORREST_full
 
-# This series of lines creates our week12_tbl. We first create two tibbles with ids to enable joining.
-week12_tbl_with_ids <- week12_tbl %>%
-  mutate(doc_id = as.character(1:nrow(week12_tbl)))
-topics_tbl_with_ids <- tibble(doc_id = Docs(io_dtm))
+EGB_full <- train(
+  Attrition ~ .,
+  full_train_tbl,
+  method = "xgbLinear",
+  tuneLength = 3,
+  na.action = na.pass,
+  preProcess = c("center", "scale", "nzv", "medianImpute"),
+  trControl = trainControl(method = "cv", indexOut = kfolds, number = 10, search = "grid", verboseIter = TRUE))
+EGB_full
+
+# Turn off parallel processing now that the hard computations are done.
+stopCluster(num_clusters)
+registerDoSEQ()
+
+# Just as before, these four lines of code calculate the accuracy of our models.
+FirstR2_full <- round(LOG_full$results$Accuracy, 2)
+SecondR2_full <- round(max(ENET_full$results$Accuracy), 2)
+ThirdR2_full <- round(max(RFORREST_full$results$Accuracy), 2)
+FourthR2_full <- round(max(EGB_full$results$Accuracy), 2)
+
+# These four lines of code apply our models we trained on our test set data to predict attrition values in the test data.
+predicted1_full <- predict(LOG_full, full_test_tbl, na.action = na.pass)
+predicted2_full <- predict(ENET_full, full_test_tbl, na.action = na.pass)
+predicted3_full <- predict(RFORREST_full, full_test_tbl, na.action = na.pass)
+predicted4_full <- predict(EGB_full, full_test_tbl, na.action = na.pass)
+
+# The confusionMatrix function calculates the accuracy of our model based upon its predicted values using the predict function.
+holdout1_full <- confusionMatrix(predicted1_full, full_test_tbl$Attrition)
+holdout2_full <- confusionMatrix(predicted2_full, full_test_tbl$Attrition)
+holdout3_full <- confusionMatrix(predicted3_full, full_test_tbl$Attrition)
+holdout4_full <- confusionMatrix(predicted4_full, full_test_tbl$Attrition)
 
 # Publication
 # Create a tibble to summarize and display the results of our four models across both training and test data.
@@ -237,3 +304,12 @@ table1_tbl <- tibble(
   Test_Accuracy = c(round(holdout1$overall[[1]], 2), round(holdout2$overall[[1]], 2), round(holdout3$overall[[1]], 2), round(holdout4$overall[[1]], 2)))
 # What characteristics of how you created the final model likely made the biggest impact in maximizing its performance? How do you know? Be sure to interpret specific numbers in the table you just created.
 # The single decision that most likely impact the final model's performance was my inclusion of all available data as predictors. The instructions for this assignment were to "develop the model you believe likely to best predict turnover in new samples using all available cases and all available variables, in some way." Because I used all variables to predict turnover, I likely overfitted my training set data, thereby making my models poorly generalize to other data. I believe I overfitted my data because the training set data had incredibly impressive accuracy across ALL models (they all ranged from .90 to .99). Because they were so well fitted to the training data, accuracy was incredibly low across ALL models when applied to test data (accuracy ranged from .08 to .11). Other characteristics of my models do not likely have a large chance to meaningfully influence the results because of this overfitting. If I were to continue refining these models, I would consider using less predictors to avoid overfitting my training set data. Doing so may reduce the model's initial accuracy, but it would likely improve my models' accuracy when applied to other data.
+
+# What is the incremental predictive accuracy gained by including text data in your model versus not including text data? In the Publication section, include a summary table comparing predictive accuracy of your final model with and without text-derived predictors, provide an answer in a comment, and explain your reasoning.
+# Model fit did not meaningfully improve because ...
+table2_tbl <- tibble(
+  algo = c("OLS Regression", "Elastic Net", "Random Forest", "eXtreme Gradient Boosting"),
+  No_Text_Train_Accuracy = c(FirstR2, SecondR2, ThirdR2, FourthR2),
+  No_Text_Test_Accuracy = c(round(holdout1$overall[[1]], 2), round(holdout2$overall[[1]], 2), round(holdout3$overall[[1]], 2), round(holdout4$overall[[1]], 2)),
+  With_Text_Train_Accuracy = c(FirstR2_full, SecondR2_full, ThirdR2_full, FourthR2_full),
+  With_Text_Test_Accuracy = c(round(holdout1_full$overall[[1]], 2), round(holdout2_full$overall[[1]], 2), round(holdout3_full$overall[[1]], 2), round(holdout4_full$overall[[1]], 2)))
