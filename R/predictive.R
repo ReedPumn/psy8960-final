@@ -22,7 +22,7 @@ no_text_tbl <- read.csv("../data/full_dataset.csv") %>%
   select(Age:Employee_ID) %>%
   # No need to include these variables since they showed no variance.
   select(-EmployeeCount, -StandardHours, -Over18) %>% 
-  # These variables were nonnormally distributed, so I log transformed them. There were other nonnormally distributing variables, but log transforming them introduced problems with a lot of data points reaching negative infinity, so I only log transformed variables where that did not occur.
+  # These variables were nonnormally distributed, so I log transformed them. There were other nonnormally distributed variables, but log transforming them introduced problems with a lot of data points reaching negative infinity, so I only log transformed variables where that did not occur.
   mutate(DistanceFromHome = log(DistanceFromHome),
          MonthlyIncome = log(MonthlyIncome),
          PercentSalaryHike = log(PercentSalaryHike)) %>%
@@ -100,10 +100,6 @@ EGB <- train(
   trControl = trainControl(method = "cv", indexOut = kfolds, number = 10, search = "grid", verboseIter = TRUE))
 EGB
 
-# Turn off parallel processing now that the hard computations are done.
-stopCluster(num_clusters)
-registerDoSEQ()
-
 # These four lines of code calculate the accuracy of our models. Accuracy for our models refers to correctly identifying whether or not the given employee has experienced job attrition. Our accuracy for each model was very high.
 FirstR2 <- round(LOG$results$Accuracy, 2)
 SecondR2 <- round(max(ENET$results$Accuracy), 2)
@@ -142,14 +138,14 @@ text_tbl <- read.csv("../data/full_dataset.csv") %>%
          EducationField = as_factor(as.numeric(as_factor(EducationField))),
          JobRole = as_factor(as.numeric(as_factor(JobRole))),
          MaritalStatus = as_factor(as.numeric(as_factor(MaritalStatus))))  %>%
-  # Remove any and all rows with NAs there are part of the two free-response text questions. We do this to not introduce problems when making our corpus.
+  # Remove NAs there are part of the two free-response text questions. We do this to not introduce problems when making our corpus.
   drop_na()
 
 # Create a corpus for each of the two free-response questions.
 corpus_good <- VCorpus(VectorSource(text_tbl$The_Good))
 corpus_bad <- VCorpus(VectorSource(text_tbl$The_Bad))
 
-# This series of pipes creates trimmed corpuses. Removing punctuation is particularly relevant for these data.
+# This series of pipes creates trimmed corpuses. Removing punctuation is particularly relevant for these data. Given my unfamiliarity with the organizational setting, I did not add many custom stop words.
 corpus_good_trimmed <- corpus_good %>%
   tm_map(content_transformer(qdap::replace_abbreviation)) %>%
   tm_map(content_transformer(replace_contraction)) %>%
@@ -177,7 +173,7 @@ tokenizer <- function(x) {
 DTM_good <- DocumentTermMatrix(corpus_good_trimmed, control = list(tokenize = tokenizer))
 DTM_bad <- DocumentTermMatrix(corpus_bad_trimmed, control = list(tokenize = tokenizer))
 
-# Determine how many topics exist in the tibbles. For good responses, 5 topics seem appropriate.
+# Determine how many topics exist. For good responses, 5 topics seem appropriate.
 topics_good <- FindTopicsNumber(DTM_good, 
                                 topics = seq(2, 10, by = 1),
                                 metrics = c( "Griffiths2004", "CaoJuan2009", "Arun2010", "Deveaud2014"), 
@@ -196,20 +192,19 @@ lda_bad_results <- LDA(DTM_bad, 4)
 # This line documents our beta matrix, noting the likelihood of each word appearing in the data.
 lda_good_betas <- tidy(lda_good_results, matrix = "beta")
 lda_bad_betas <- tidy(lda_bad_results, matrix = "beta")
-# Similarly, this line documents our gamma matrix, noting the likelihood fo each document appearing in the data.
  
-# Turn our two DTMs into tibbles. I focused on the gamma values since they correspond directly to topics that each employee discussed. I grouped the data by each document to get the desired number of rows corresponding to the number of employees. Arranging data by employee ids is much cleaner.
+# I focused on the gamma values since they correspond directly to topics that each employee discussed. I grouped the data by each document to get the desired number of rows corresponding to the number of employees. Arranging data by employee ids is much cleaner. Importantly, I only chose to keep the top document for each participant to keep results simple, yet informative.
 lda_good_gammas <- tidy(lda_good_results, matrix = "gamma") %>%
   group_by(document) %>%
   slice_max(n = 1, gamma, with_ties = FALSE) %>%
   mutate(Employee_ID = as.integer(document),
-         topic = topic_good) %>%
+         topic_good = topic) %>%
   arrange(Employee_ID)
 lda_bad_gammas <- tidy(lda_bad_results, matrix = "gamma") %>%
   group_by(document) %>%
   slice_max(n = 1, gamma, with_ties = FALSE) %>%
   mutate(Employee_ID = as.integer(document),
-         topic = topic_bad) %>%
+         topic_bad = topic) %>%
   arrange(Employee_ID)
 
 # Create one tibble with both quantitative and qualitative information.
@@ -219,16 +214,12 @@ full_tbl <- no_text_tbl %>%
   full_join(lda_bad_gammas) %>%
   select(-document, -gamma, -topic)
 
-# Just as before, these lines of code create the test and training sets in our data.
+# Just as before, these lines of code create the test and training sets in our data to evaluate the incremental validity offered by textual data.
 full_random_tbl <- full_tbl[sample(nrow(full_tbl)), ]
 full_random_75 <- round(nrow(full_random_tbl) * 0.75, 0)
 full_train_tbl <- full_random_tbl[1:full_random_75, ]
 kfolds <- createFolds(full_train_tbl$Attrition, 10)
 full_test_tbl <- full_random_tbl[(full_random_75 + 1):nrow(full_random_tbl), ]
-
-# I established parallel processing to speed up these analyses.
-num_clusters <- makeCluster(7)
-registerDoParallel(num_clusters)
 
 # I am running the same models as before to enable fair comparisons.
 LOG_full <- train(
@@ -240,7 +231,6 @@ LOG_full <- train(
   preProcess = c("center", "scale", "nzv", "medianImpute"),
   trControl = trainControl(method = "cv", indexOut = kfolds, number = 10, search = "grid", verboseIter = TRUE)
 )
-# Evaluate the model to check for NA values or errors. I do the same for all other models.
 LOG_full
 
 ENET_full <- train(
@@ -303,10 +293,10 @@ table1_tbl <- tibble(
   Train_Accuracy = c(FirstR2, SecondR2, ThirdR2, FourthR2),
   Test_Accuracy = c(round(holdout1$overall[[1]], 2), round(holdout2$overall[[1]], 2), round(holdout3$overall[[1]], 2), round(holdout4$overall[[1]], 2)))
 # What characteristics of how you created the final model likely made the biggest impact in maximizing its performance? How do you know? Be sure to interpret specific numbers in the table you just created.
-# The single decision that most likely impact the final model's performance was my inclusion of all available data as predictors. The instructions for this assignment were to "develop the model you believe likely to best predict turnover in new samples using all available cases and all available variables, in some way." Because I used all variables to predict turnover, I likely overfitted my training set data, thereby making my models poorly generalize to other data. I believe I overfitted my data because the training set data had incredibly impressive accuracy across ALL models (they all ranged from .90 to .99). Because they were so well fitted to the training data, accuracy was incredibly low across ALL models when applied to test data (accuracy ranged from .08 to .11). Other characteristics of my models do not likely have a large chance to meaningfully influence the results because of this overfitting. If I were to continue refining these models, I would consider using less predictors to avoid overfitting my training set data. Doing so may reduce the model's initial accuracy, but it would likely improve my models' accuracy when applied to other data.
+# The single decision that most likely impact the final model's performance was my inclusion of all available data as predictors. The instructions for this assignment were to "develop the model you believe likely to best predict turnover in new samples using all available cases and all available variables, in some way." Because I used all variables to predict turnover, I likely overfitted my training set data. Evidence of overfitting comes from the very strong accuracy values in the training data (Accuracy values ranged from 0.90 to 0.99). That overfitting may not be too bad of a problem, though, because I had comparably strong predictive power in my test data (Accuracy ranged from 0.86 to 0.88). One explanation is the large number of predictors I had and the large number of people supplying data for these predictors. More data means more confident findings. On a similar note, there was hardly any influence of missing data. Only the two free-response text questions had missing data, and only a few cells of missing data at that. The combination of these points likely helped all of my models' predictive power.
 
 # What is the incremental predictive accuracy gained by including text data in your model versus not including text data? In the Publication section, include a summary table comparing predictive accuracy of your final model with and without text-derived predictors, provide an answer in a comment, and explain your reasoning.
-# Model fit did not meaningfully improve because ...
+# Model fit did not meaningfully improve with textual data, as there was only a 2%, 3%, 0%, and 0% increase in accuracy across each respective model. This lack of predictive accuracy could be because I had so many quantitative columns providing data that helped inform predictions. Alternatively, it could have also been due to the limited number of free-response questions. Only two free-response questions were included. This is less than 10% as the number of quantitative variables that were considered, subsequently minimizing these free-response questions' influence on the models. It is also possible that it is hard to improve upon a really strong model. Poor models have a large window of improvement. But because my initial models performed so strongly, they could not improve much more in terms of Accuracy.
 table2_tbl <- tibble(
   algo = c("OLS Regression", "Elastic Net", "Random Forest", "eXtreme Gradient Boosting"),
   No_Text_Train_Accuracy = c(FirstR2, SecondR2, ThirdR2, FourthR2),
