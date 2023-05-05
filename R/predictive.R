@@ -202,15 +202,22 @@ lda_bad_betas <- tidy(lda_bad_results, matrix = "beta")
 lda_good_gammas <- tidy(lda_good_results, matrix = "gamma") %>%
   group_by(document) %>%
   slice_max(n = 1, gamma, with_ties = FALSE) %>%
-  mutate(Employee_ID = as.integer(document)) %>%
+  mutate(Employee_ID = as.integer(document),
+         topic = topic_good) %>%
   arrange(Employee_ID)
 lda_bad_gammas <- tidy(lda_bad_results, matrix = "gamma") %>%
   group_by(document) %>%
   slice_max(n = 1, gamma, with_ties = FALSE) %>%
-  mutate(Employee_ID = as.integer(document)) %>%
+  mutate(Employee_ID = as.integer(document),
+         topic = topic_bad) %>%
   arrange(Employee_ID)
 
-
+# Create one tibble with both quantitative and qualitative information.
+full_tbl <- no_text_tbl %>%
+  full_join(lda_good_gammas) %>%
+  select(-document, -gamma, -topic) %>%
+  full_join(lda_bad_gammas) %>%
+  select(-document, -gamma, -topic)
 
 
 
