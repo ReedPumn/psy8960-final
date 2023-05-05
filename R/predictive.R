@@ -1,7 +1,6 @@
 # Script Settings and Resources
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 library(tidyverse)
-library(fastDummies)
 library(haven)
 library(caret)
 library(parallel)
