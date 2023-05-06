@@ -1,0 +1,31 @@
+---
+title: "PSY 8960 Final Project Web App"
+author: Reed Priest
+output: 
+  html_document:
+    df_print: paged
+---
+
+# Script Settings and Resources
+```{r section2, message=F}
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+library(tidyverse)
+```
+
+# Data Import and Cleaning
+```{r Data Import}
+# Throughout this series of pipes, we create and export the skinny data file needed to create a shiny web app. 
+skinny_tbl <- read.csv("../data/full_dataset.csv") %>%
+  as_tibble() %>%
+  # I started by importing the relevant columns in the original data that were needed. This first involved creating an overall satisfaction variable, comprised of environment, job, and relationship satisfaction. Because I did not know if the scales on these variables were equivalent, I chose to z-transform their columns and average them to calculate overall satisfaction.
+  mutate(OverallSatisfaction = as.numeric((scale(EnvironmentSatisfaction) + scale(RelationshipSatisfaction) + scale(JobSatisfaction)) / 3)) %>%
+  select(MonthlyIncome, Attrition, OverallSatisfaction, Department, EducationField, Gender, JobRole) %>%
+  # Then I transformed all of the character variables into integer variables by coding each qualitative entry as a number.
+  mutate(Attrition = as.integer(recode(Attrition, "No" = "0", "Yes" = "1")),
+         Department = as.integer(recode(Department, "Sales" = "1", "Research & Development" = "2", "Human Resources" = "3")),
+         EducationField = as.integer(recode(EducationField, "Life Sciences" = "1", "Medical" = "2", "Marketing" = "3", "Technical Degree" = "4", "Human Resources" = "5", "Other" = "6")),
+         Gender = as.integer(recode(Gender, "Female" = "0", "Male" = "1")),
+         JobRole = as.integer(recode(JobRole, "Sales Executive" = "1", "Research Scientist" = "2", "Laboratory Technician" = "3", "Manufacturing Director" = "4", "Healthcare Representative" = "5", "Manager" = "6", "Sales Representative" = "7", "Research Director" = "8", "Human Resources" = "9"))) %>%
+  # Then I exported the skinny dataset to be used in another Rmd file.
+  saveRDS("../shiny/shiny_input.RDS")
+```
