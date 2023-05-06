@@ -26,6 +26,6 @@ skinny_tbl <- read.csv("../data/full_dataset.csv") %>%
          EducationField = as_factor(EducationField),
          Gender = as_factor(Gender),
          JobRole = as_factor(JobRole)) %>%
-  # Then I exported the skinny dataset to be used in another Rmd file.
+  # Then I exported the skinny dataset to be used in another R file.
   saveRDS("../shiny/shiny_input.RDS")
 ```

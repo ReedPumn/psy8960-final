@@ -39,3 +39,52 @@ ui <- fluidPage(
     )
   )
 )
+
+server <- function(input, output) {
+  app_tbl <- readRDS("shiny_input.RDS")  
+  output$plot <- renderPlot({
+    
+    # Define working tbl to iteratively modify.
+    disp_app_tbl <- app_tbl
+    
+    # Don't need to change it if set to All Departments; otherwise filter by department selection.
+    if (input$deptselect != "All Departments") {
+      app_disp_tbl <- app_disp_tbl %>%
+        filter(Department == input$deptselect)
+    }
+    
+    # Don't need to change it if set to All Fields; otherwise filter by educational field selection.
+    if (input$fieldselect != "All Fields") {
+      app_disp_tbl <- app_disp_tbl %>%
+        filter(EducationField == input$fieldselect)
+    }
+    
+    # Don't need to change it if set to Both; otherwise filter by gender selection.
+    if (input$genderselect != "Both") {
+      app_disp_tbl <- app_disp_tbl %>%
+        filter(Gender == input$genderselect)
+    }
+    
+    # Don't need to change it if set to All Job Roles; otherwise filter by department selection.
+    if (input$jobroleselect != "All Job Roles") {
+      app_disp_tbl <- app_disp_tbl %>%
+        filter(JobRole == input$jobroleselect)
+    }
+    
+    # These three if statements filter according the the criterion selected.
+    if (input$criterionselect == "MonthlyIncome") {
+      app_disp_tbl <- app_disp_tbl %>%
+        filter(MonthlyIncome == input$criterionselect)
+    }
+    
+    if (input$criterionselect == "Attrition") {
+      app_disp_tbl <- app_disp_tbl %>%
+        filter(Attrition == input$criterionselect)
+    }
+    
+    if (input$criterionselect == "OverallSatisfaction") {
+      app_disp_tbl <- app_disp_tbl %>%
+        filter(OverallSatisfaction == input$criterionselect)
+    }
+  })
+  out
