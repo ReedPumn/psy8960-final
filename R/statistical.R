@@ -56,9 +56,15 @@ H3anova
 # Years at the company were not significantly predicted by relationship satisfaction: F(`r H3anova$DFn`, `r H3anova$DFd`) = `r H3anova$F[[3]]`, p = `r str_remove(round(H3anova$p[[3]], 2), pattern = "^(-)?0")`. As a result, post-hoc analyses with Tukey's HSD were not conducted.
 
 # Here are the three publication tables saved according to their hypothesis numbers.
-(cor_test(stat_tbl, MonthlyIncome, PerformanceRating)) %>%
+H1cor %>%
   write_csv(file = "../out/H1.csv")
-(tukey_hsd(stat_tbl, MonthlyIncome ~ Department)) %>%
-  write_csv(file = "../out/H1b.csv")
-(anova_test(H3lm, detailed = TRUE)) %>%
+H2anova %>%
+  as_tibble() %>%
+  # Add the SSbetween and SSwithin columns
+  mutate(SSb = SSn / DFn,
+         SSw = SSd / DFd) %>%
+  write_csv(file = "../out/H2a.csv")
+H2tukey %>%
+  write_csv(file = "../out/H2b.csv")
+H3anova %>%
   write_csv(file = "../out/H3.csv")
