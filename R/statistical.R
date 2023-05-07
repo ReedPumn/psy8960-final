@@ -20,9 +20,8 @@ H2tukey <- tukey_hsd(stat_tbl, MonthlyIncome ~ Department)
 H2tukey
 
 # H3 Test: Tenure can be predicted from relationship satisfaction, and this relationship is moderated by gender. Regression and significance tests, with scatterplot and fit lines. Note that you’ll need to plot predicted values (i.e., marginal effects), not raw data. Include a table of coefficients, t-tests, and p-values only (no SEs), with meaningful labels.
-H3lm <- lm(YearsAtCompany ~ RelationshipSatisfaction * Gender, data = stat_tbl)
-H3anova <- anova_test(H3lm, detailed = TRUE)
-H3anova
+H3lm <- lm(YearsAtCompany ~ RelationshipSatisfaction + Gender + RelationshipSatisfaction * Gender, data = stat_tbl)
+summary(H3lm)
 
 # Visualizations
 # H1 scatterplot. There was a perfectly bimodal distribution in performance rating scores, which obfuscated interpretations So I jittered the data. I considered adjusting the y-axis units to dispaly the full range of possible ranking values, but without context on that variable's full scale, I chose to leave the plotted scale as is. For this and all other graphs, I chose to avoid going too far with color to keep it simple and avoid possible challenges to inclusiveness with colorblindness.
@@ -66,5 +65,6 @@ H2anova %>%
   write_csv(file = "../out/H2a.csv")
 H2tukey %>%
   write_csv(file = "../out/H2b.csv")
-H3anova %>%
+summary(H3lm) %>%
+  tidy() %>%
   write_csv(file = "../out/H3.csv")

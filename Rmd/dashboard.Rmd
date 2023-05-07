@@ -17,9 +17,8 @@ library(tidyverse)
 # Throughout this series of pipes, we create and export the skinny data file needed to create a shiny web app. 
 skinny_tbl <- read.csv("../data/full_dataset.csv") %>%
   as_tibble() %>%
-  # I started by importing the relevant columns in the original data that were needed. This first involved creating an overall satisfaction variable, comprised of environment, job, and relationship satisfaction. Because I did not know if the scales on these variables were equivalent, I chose to z-transform their columns and average them to calculate overall satisfaction.
-  mutate(OverallSatisfaction = as.numeric((scale(EnvironmentSatisfaction) + scale(RelationshipSatisfaction) + scale(JobSatisfaction)) / 3)) %>%
-  select(MonthlyIncome, Attrition, OverallSatisfaction, Department, EducationField, Gender, JobRole) %>%
+  # I started by importing the relevant columns in the original data that were needed.
+  select(MonthlyIncome, Attrition, JobSatisfaction, Department, EducationField, Gender, JobRole) %>%
   # Then I transformed all of the character variables into factor variables
   mutate(Attrition = as_factor(Attrition),
          Department = as_factor(Department),
