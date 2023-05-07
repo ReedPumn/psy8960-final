@@ -22,3 +22,5 @@ full_tbl <- full_join(import_tbl_1, import_tbl_2, by = "Employee_ID") %>%
   write_csv(file = "../data/full_dataset.csv")
 # There are 170 missing values in the merged tibble. This adds up. 170 - 106 = 64 total missing values across tibbles. 32 of these values are from missing ID numbers in both "The_Good" and 32 from "The_Bad" columns, because no data could be imported into these cells for the 32 employees that were missing from import_tbl_2. 
 sum(is.na(full_tbl))
+
+# I considered changing all categorical variables to factors at this point to make them appropriately typed, but different analyses require different types of data (e.g., factor or character). For example, some of the analyses in statistical.R cannot be run on factor type data. As a result, I chose to change the type of these categorical data in their respective R files when relevant.
