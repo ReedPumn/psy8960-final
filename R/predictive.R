@@ -30,10 +30,7 @@ no_text_tbl <- read.csv("../data/full_dataset.csv") %>%
          Gender = as_factor(recode(Gender, "Female" = "0", "Male" = "1")),
          OverTime = as_factor(recode(OverTime, "No" = "0", "Yes" = "1"))) %>%
   # Now recode all other categorical variables as factors. To keep the factored data as numbers, rather than text, I converted them to numeric values and then back to factors.
-  mutate(Attrition = as_factor(as.numeric(as_factor(Attrition))),
-         Gender = as_factor(as.numeric(as_factor(Gender))),
-         OverTime = as_factor(as.numeric(as_factor(OverTime))),
-         BusinessTravel = as_factor(as.numeric(as_factor(BusinessTravel))),
+  mutate(BusinessTravel = as_factor(as.numeric(as_factor(BusinessTravel))),
          Department = as_factor(as.numeric(as_factor(Department))),
          EducationField = as_factor(as.numeric(as_factor(EducationField))),
          JobRole = as_factor(as.numeric(as_factor(JobRole))),
