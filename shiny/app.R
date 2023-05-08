@@ -25,7 +25,7 @@ ui <- fluidPage(
       
       selectInput("genderselect",
                   "Subset by gender?",
-                  c("Women", "Men", "Both"), selected = "Both"),
+                  c("Female", "Male", "Both"), selected = "Both"),
       
       selectInput("jobroleselect",
                   "Subset by job role?",
@@ -39,7 +39,7 @@ ui <- fluidPage(
     )
   )
 )
-
+# Now concstruct the server.
 server <- function(input, output) {
   app_initial_tbl <- readRDS("./shiny_input.RDS")
   app_modified_tbl <- app_initial_tbl
@@ -139,5 +139,5 @@ server <- function(input, output) {
   })
 }
 
- # Run the app.
+# Run the app.
 shinyApp(ui = ui, server = server)
