@@ -21,7 +21,7 @@ ui <- fluidPage(
       
       selectInput("fieldselect",
                   "Subset by educational field?",
-                  c("Life Sciences", "Medical", "Marketing", "Technical Degree", "Human Resources", "Other Field", "All Fields"), selected = "All Fields"),
+                  c("Life Sciences", "Medical", "Marketing", "Technical Degree", "Human Resources", "Other", "All Fields"), selected = "All Fields"),
       
       selectInput("genderselect",
                   "Subset by gender?",

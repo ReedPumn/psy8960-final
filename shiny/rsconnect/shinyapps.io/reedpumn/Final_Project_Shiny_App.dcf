@@ -1,0 +1,13 @@
+name: Final_Project_Shiny_App
+title: Final_Project_Shiny_App
+username:
+account: reedpumn
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 9059910
+bundleId: 7191314
+url: https://reedpumn.shinyapps.io/Final_Project_Shiny_App/
+when: 1683585972.58901
+lastSyncTime: 1683585972.58902
+asMultiple: FALSE
+asStatic: FALSE

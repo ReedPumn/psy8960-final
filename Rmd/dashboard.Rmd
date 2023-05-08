@@ -6,6 +6,10 @@ output:
     df_print: paged
 ---
 
+# Reproducible Image and Online Resources
+
+An interactive web app is available by [clicking this link instead](https://reedpumn.shinyapps.io/Final_Project_Shiny_App/).
+
 # Script Settings and Resources
 ```{r section2, message=F}
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
