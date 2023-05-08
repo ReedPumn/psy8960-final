@@ -19,12 +19,12 @@ skinny_tbl <- read.csv("../data/full_dataset.csv") %>%
   as_tibble() %>%
   # I started by importing the relevant columns in the original data that were needed.
   select(MonthlyIncome, Attrition, JobSatisfaction, Department, EducationField, Gender, JobRole) %>%
-  # Then I transformed all of the character variables into factor variables
-  mutate(Attrition = as_factor(Attrition),
-         Department = as_factor(Department),
+  # Then I transformed all of the character variables into factor variables. I also recoded the Attrition variable from a factor to integer variable. I did this to more easily calculate means and SDs on Attrition in the shiny app.
+  mutate(Department = as_factor(Department),
          EducationField = as_factor(EducationField),
          Gender = as_factor(Gender),
-         JobRole = as_factor(JobRole)) %>%
+         JobRole = as_factor(JobRole),
+         Attrition = as.integer(recode(Attrition, "No" = "0", "Yes" = "1"))) %>%
   # Then I exported the skinny dataset to be used in another R file.
   saveRDS("../shiny/shiny_input.RDS")
 ```

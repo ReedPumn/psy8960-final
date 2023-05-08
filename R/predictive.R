@@ -288,7 +288,7 @@ holdout4_full <- confusionMatrix(predicted4_full, full_test_tbl$Attrition)
 # Publication
 # Create a tibble to summarize and display the results of our four models across both training and test data.
 table1_tbl <- tibble(
-  algo = c("OLS Regression", "Elastic Net", "Random Forest", "eXtreme Gradient Boosting"),
+  algo = c("GLM Regression", "Elastic Net", "Random Forest", "eXtreme Gradient Boosting"),
   Train_Accuracy = c(FirstR2, SecondR2, ThirdR2, FourthR2),
   Test_Accuracy = c(round(holdout1$overall[[1]], 2), round(holdout2$overall[[1]], 2), round(holdout3$overall[[1]], 2), round(holdout4$overall[[1]], 2)))
 # What characteristics of how you created the final model likely made the biggest impact in maximizing its performance? How do you know? Be sure to interpret specific numbers in the table you just created.
@@ -297,7 +297,7 @@ table1_tbl <- tibble(
 # What is the incremental predictive accuracy gained by including text data in your model versus not including text data? In the Publication section, include a summary table comparing predictive accuracy of your final model with and without text-derived predictors, provide an answer in a comment, and explain your reasoning.
 # Model fit did not meaningfully improve with textual data, as there was only a 2%, 3%, 0%, and 0% increase in accuracy across each respective model. This lack of predictive accuracy could be because I had so many quantitative columns providing data that helped inform predictions. Alternatively, it could have also been due to the limited number of free-response questions. Only two free-response questions were included. This is less than 10% as the number of quantitative variables that were considered, subsequently minimizing these free-response questions' influence on the models. It is also possible that it is hard to improve upon a really strong model. Poor models have a large window of improvement. But because my initial models performed so strongly, they could not improve much more in terms of Accuracy.
 table2_tbl <- tibble(
-  algo = c("OLS Regression", "Elastic Net", "Random Forest", "eXtreme Gradient Boosting"),
+  algo = c("GLM Regression", "Elastic Net", "Random Forest", "eXtreme Gradient Boosting"),
   No_Text_Train_Accuracy = c(FirstR2, SecondR2, ThirdR2, FourthR2),
   No_Text_Test_Accuracy = c(round(holdout1$overall[[1]], 2), round(holdout2$overall[[1]], 2), round(holdout3$overall[[1]], 2), round(holdout4$overall[[1]], 2)),
   With_Text_Train_Accuracy = c(FirstR2_full, SecondR2_full, ThirdR2_full, FourthR2_full),
