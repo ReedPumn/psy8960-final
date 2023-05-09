@@ -6,6 +6,8 @@ ui <- fluidPage(
   
   # Application title.
   titlePanel("Monthly Pay, Turnover, and Job Satisfaction in Employees"),
+  # I added a subtitle here to give the reader context to the shiny app.
+  tags$h4("Please note: If no data are graphed, then no data exist with the given filters. For Attrition, 0 means still working at the organization; 1 means no longer working at the organization."),
   
   # Define the sidebar so that users can select the type of data to examine.
   sidebarLayout(
